@@ -1,0 +1,152 @@
+---
+title: "data_prep"
+author: "LU HAN"
+date: "April 11, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+library(tidyverse)
+library(here)
+library(skimr)
+library(readxl)
+library(forcats)
+library(ggalt)
+library(gridExtra)
+library(grid)
+theme_set(theme_classic())
+```
+
+```{r}
+df <- read_excel(here("2017-trends-college-pricing-souce-data-final_102717.xlsx"), sheet = 7, range = "b3:z53") 
+
+is <- df %>% select(1:12)
+os <- df %>% select(1, 15:25)
+
+names(is)[2:12] <- 2008:2018
+names(os)[2:12] <- 2008:2018
+
+glimpse(is)
+glimpse(os)
+```
+# calculate the mean difference as a percentage of mean for the start year and end year for comparison
+```{r}
+is <- is %>% 
+  mutate(mean_dif_2008 = round((`2008` - mean(`2008`))/mean(`2008`), 2), 
+         mean_dif_2018 = round((`2018` - mean(`2018`))/mean(`2018`), 2), 
+         change = case_when (mean_dif_2018 - mean_dif_2008 >= 0 ~ "increased", 
+                             mean_dif_2018 - mean_dif_2008 < 0 ~ "decreased")
+         ) %>% 
+  select(STATE, mean_dif_2008, mean_dif_2018, change)
+
+os <- os %>% 
+  mutate(mean_dif_2008 = round((`2008` - mean(`2008`))/mean(`2008`), 2), 
+         mean_dif_2018 = round((`2018` - mean(`2018`))/mean(`2018`), 2), 
+         change = case_when (mean_dif_2018 - mean_dif_2008 >= 0 ~ "increased", 
+                             mean_dif_2018 - mean_dif_2008 < 0 ~ "decreased")
+         ) %>% 
+  select(STATE, mean_dif_2008, mean_dif_2018, change)
+
+```
+# split the increased state and rehape df
+```{r}
+is_inc <- is %>% 
+  filter(change == "increased") %>% 
+  select(-change) %>% 
+  mutate(state = fct_reorder(as_factor(STATE), mean_dif_2018))
+         
+os_inc <- os %>% 
+  filter(change == "increased") %>% 
+  select(-change) %>% 
+  mutate(state = fct_reorder(as_factor(STATE), mean_dif_2018))
+```
+
+# split the increased state and rehape df
+```{r}
+is_dec <- is %>% 
+  filter(change == "decreased") %>% 
+  select(-change) %>% 
+  mutate(state = fct_reorder(as_factor(STATE), -mean_dif_2018))
+
+os_dec <- os %>% 
+  filter(change == "decreased") %>% 
+  select(-change) %>% 
+  mutate(state = fct_reorder(as_factor(STATE), -mean_dif_2018))
+```
+
+
+```{r}
+ti <- ggplot(is_inc) +
+  geom_dumbbell(aes(x =`mean_dif_2008`, xend =`mean_dif_2018`, y=state, group=state),
+                color="#c0c0c0", 
+                size=1,
+                size_xend =2,
+                colour_xend="#0072B2") +
+    scale_x_reverse(labels = scales::percent) + 
+  scale_y_discrete(position = "left") +
+  labs(x = NULL,
+       y = NULL,
+       subtitle="Relative Price has Increased or Remain Unchanged", 
+       caption="Source: https://onlinembapage.com/average-tuition-and-educational-attainment-in-the-united-states/") +
+  theme(plot.title = element_text(hjust=1, face="bold"),
+        plot.subtitle = element_text(hjust=0),
+        plot.caption = element_text(color = "white", hjust=0),
+        axis.title.x = element_text(hjust=1),
+        plot.background=element_blank(),
+        panel.background=element_blank(),
+        panel.grid.minor=element_blank(),
+        panel.grid.major.y=element_blank(),
+        panel.grid.major.x=element_line(color = "light grey"),
+        text=element_text(size=9,  family="Arial"),
+        axis.ticks=element_blank(),
+        legend.position="top",
+        panel.border=element_blank())+
+  coord_cartesian(xlim = c(1, -0.5)) 
+plot(ti)
+
+```
+
+## plot for relative cost decreases
+```{r}
+td <- ggplot(is_dec) +
+  geom_dumbbell(aes(x =`mean_dif_2008`, xend =`mean_dif_2018`, y=state, group=state),
+                color="#c0c0c0", 
+                size=1,
+                size_xend =2,
+                colour_xend="#D55E00")+
+    scale_x_reverse(labels = scales::percent) + 
+  scale_y_discrete(position = "right") +
+  labs(x = NULL,
+       y = NULL,
+       subtitle="Relative Price has Decreased", 
+       caption="Source: https://onlinembapage.com/average-tuition-and-educational-attainment-in-the-united-states/") +
+  theme(plot.title = element_text(hjust=1, face="bold"),
+        plot.subtitle = element_text(hjust=0),
+        plot.caption = element_text(color = "white", hjust=0),
+        axis.title.x = element_text(hjust=1),
+        plot.background=element_blank(),
+        panel.background=element_blank(),
+        panel.grid.minor=element_blank(),
+        panel.grid.major.y=element_blank(),
+        panel.grid.major.x=element_line(color = "light grey"),
+        text=element_text(size=9,  family="Arial"),
+        axis.ticks=element_blank(),
+        legend.position="top",
+        panel.border=element_blank())+
+  coord_cartesian(xlim = c(1, -0.5)) 
+plot(td)
+```
+
+
+
+```{r}
+# use grid.arrange to place the plots
+full_title <- expression(italic(Tamarix)~"Green Foliage %")
+tt1 <- grid.arrange(ti, td, padding = 0, ncol=2, top = full_title )
+
+tt1
+
+## save the image
+ggsave("tt1.png", tt1, width = 8, height = 6, units = "in", device = "png")
+```

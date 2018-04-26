@@ -1,0 +1,87 @@
+---
+title: "wk2"
+author: "LU HAN"
+date: "April 25, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(skimr)
+library(janitor)
+
+```
+
+read data and remove "%" from names of the disease var
+```{r}
+df <- readxl::read_xlsx("global_mortality.xlsx")
+names(df) <- names(df) %>% 
+             str_replace_all("\\s\\(%\\)", "")
+
+```
+
+tidy data from wide to long
+```{r}
+df_china <- df %>% 
+  gather(disease, value, 4:35) %>%
+  filter(year %in% c(1990, 2016) & country == "China") %>% 
+  spread(year, value) %>% 
+  mutate(diff = round(`1990` - `2016`, 2),
+         type = case_when(diff >= 0 ~ "Increase in Mortality Rate",
+                          diff < 0 ~ "Decrease in Mortality Rate")) %>% 
+  arrange(country, diff)
+
+df_world <- df %>% 
+  gather(disease, value, 4:35) %>%
+  filter(year %in% c(1990, 2016) & country == "World") %>% 
+  spread(year, value) %>% 
+  mutate(diff = round(`1990` - `2016`, 2),
+         type = case_when(diff >= 0 ~ "Increase in Mortality Rate",
+                          diff < 0 ~ "Decrease in Mortality Rate")) %>% 
+  arrange(country, diff)
+
+df_US <- df %>% 
+  gather(disease, value, 4:35) %>%
+  filter(year %in% c(1990, 2016) & country == "United States") %>% 
+  spread(year, value) %>% 
+  mutate(diff = round(`1990` - `2016`, 2),
+         type = case_when(diff >= 0 ~ "Increase in Mortality Rate",
+                          diff < 0 ~ "Decrease in Mortality Rate")) %>% 
+  arrange(country, diff)
+  
+```
+
+plot the data to see in which disease China made higher progress than the rest of the world, and which disease China need to make more efforts to catch up with the world trend.
+
+```{r}
+df_china %>% 
+  ggplot(aes(x = reorder(disease, diff), y = diff, label = diff)) +
+  geom_bar(stat = "identity", aes(fill = type), width = .5) +
+  geom_text(color = "black", size = 2.5, nudge_y = 0.2) +
+  coord_flip() +
+  labs(y = NULL, x = NULL, title = "Change in Causes of Mortality Rate in China from 1990 to 2016", subtitle = "Air Population is killing more people;\nDespite of medical improvement, babies are less likely to survive their first year;\nLess people die from Cardiovascular diseases & Cancers") +
+  theme_minimal()
+
+ggsave("china_mortality.png", width = 30, height = 20, units = "cm") 
+
+
+df_world %>%  
+  ggplot(aes(x = reorder(disease, diff), y = diff, label = diff)) +
+  geom_bar(stat = "identity", aes(fill = type), width = .5) +
+  geom_text(color = "black", size = 2.5, nudge_y = 0.2) +
+  coord_flip() +
+  labs(y = NULL, x = NULL, title = "Change in Causes of Mortality Rate Worldwide from 1990 to 2016", subtitle = "Despite preventable and treatable, Diarrheal is increasingly causing more people especially children to die;\nDespite of medical improvement, babies are less likely to survive their first year;\nLess people die from Cardiovascular diseases & Cancers") +
+  theme_minimal()
+
+ggsave("world_mortality.png", width = 30, height = 20, units = "cm") 
+
+df_world %>%  
+  ggplot(aes(x = reorder(disease, diff), y = diff, label = diff)) +
+  geom_bar(stat = "identity", aes(fill = type), width = .5) +
+  geom_text(color = "black", size = 2.5, nudge_y = 0.2) +
+  coord_flip() +
+  labs(y = NULL, x = NULL, title = "Change in Causes of Mortality Rate in United States from 1990 to 2016", subtitle = "Despite of medical improvement, babies are less likely to survive their first year;\nLess people die from Cardiovascular diseases & Cancers") +
+  theme_minimal()
+
+ggsave("US_mortality.png", width = 30, height = 20, units = "cm") 
+```
